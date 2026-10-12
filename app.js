@@ -53,11 +53,23 @@
         redirect: 'follow',
       });
     } catch {
-      throw new Error('Sin conexión con el servidor. Revisa tu internet.');
+      throw new Error('No se pudo conectar con el script. Revisa tu internet y que la URL esté completa (copiada desde "Implementar → Gestionar implementaciones").');
     }
+    const text = await res.text();
     let data;
-    try { data = await res.json(); }
-    catch { throw new Error('Respuesta inválida del servidor. ¿La URL es la de /exec y el acceso es "Cualquier persona"?'); }
+    try { data = JSON.parse(text); }
+    catch {
+      if (res.status === 404 || /no se encontr|not found|unable to open/i.test(text)) {
+        throw new Error('La URL no existe (404). Copia otra vez la URL de la implementación; no uses la del editor.');
+      }
+      if (/accounts\.google|ServiceLogin|sign in|iniciar sesi/i.test(text)) {
+        throw new Error('El script pide iniciar sesión. En Apps Script: Implementar → Gestionar implementaciones → ✏️ → "Ejecutar como: Yo" y "Quién tiene acceso: Cualquier persona" → Versión nueva → Implementar.');
+      }
+      if (/authoriz|autoriz|permis/i.test(text)) {
+        throw new Error('Falta autorizar el script. En el editor ejecuta configurarInicial y acepta los permisos.');
+      }
+      throw new Error(`Respuesta inesperada del script (código ${res.status}). Abre la URL en Safari para ver qué muestra.`);
+    }
     if (!data.ok && !data.duplicate) throw new Error(data.error || 'Error desconocido');
     return data;
   }
@@ -243,7 +255,7 @@
 
   async function save(force = false) {
     const d = getFormData();
-    if (!d.total && !d.serie_numero && !d.razon_social) {
+    if (!d.total && !d.numero && !d.razon_social) {
       setNotice('error', 'El formulario está vacío. Llena al menos los datos principales.');
       return;
     }
@@ -283,9 +295,20 @@
   }
 
   async function saveSettings() {
-    const url = $('cfgUrl').value.trim();
-    const token = $('cfgToken').value.trim();
+    // Limpia espacios, saltos de línea y comillas que a veces se pegan al copiar
+    const url = $('cfgUrl').value.replace(/\s+/g, '').replace(/[?#].*$/, '');
+    const token = $('cfgToken').value.replace(/[\s"'“”]+/g, '');
+    $('cfgUrl').value = url;
+    $('cfgToken').value = token;
     const msg = $('settingsMsg');
+    if (/\/dev$/.test(url)) {
+      msg.textContent = '⚠️ Esa es la URL de prueba (/dev). Usa la de "Implementar → Gestionar implementaciones", que termina en /exec.';
+      return;
+    }
+    if (/\/edit|\/home\/projects|docs\.google\.com/.test(url)) {
+      msg.textContent = '⚠️ Esa es la URL del editor o de la hoja. Necesitas la URL de la "Aplicación web" (termina en /exec).';
+      return;
+    }
     if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) {
       msg.textContent = '⚠️ La URL debe empezar con https://script.google.com/ y terminar en /exec';
       return;
