@@ -1,6 +1,6 @@
 // Cache de la app para que abra rápido (incluso con mala señal).
 // Cambia la versión cuando actualices archivos para forzar la actualización.
-const CACHE = 'facturas-v1';
+const CACHE = 'facturas-v3';
 const ASSETS = [
   './',
   './index.html',
