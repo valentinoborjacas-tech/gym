@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Facturas</title>
+  <meta name="theme-color" content="#0f1b2d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Facturas">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="btnBack" class="icon-btn hidden" aria-label="Volver">‹</button>
+    <h1>Facturas</h1>
+    <button id="btnSettings" class="icon-btn" aria-label="Ajustes">⚙︎</button>
+  </header>
+
+  <main>
+    <!-- INICIO -->
+    <section id="screen-home" class="screen">
+      <div class="hero">
+        <div class="hero-icon">🧾</div>
+        <p class="hero-text">Toma una foto de la factura.<br>Revisa los datos y súbelos a tu Sheets.</p>
+      </div>
+
+      <label class="btn btn-primary btn-big">
+        📷 Tomar foto
+        <input id="inputCamera" type="file" accept="image/*" capture="environment" hidden>
+      </label>
+      <label class="btn btn-ghost">
+        🖼️ Elegir de la galería
+        <input id="inputGallery" type="file" accept="image/*" hidden>
+      </label>
+
+      <a id="linkSheet" class="link hidden" target="_blank" rel="noopener">Abrir mi hoja de Google Sheets ↗</a>
+      <p id="statCount" class="muted center"></p>
+    </section>
+
+    <!-- PROCESANDO -->
+    <section id="screen-loading" class="screen hidden">
+      <img id="loadingPreview" class="preview" alt="">
+      <div class="spinner"></div>
+      <p id="loadingText" class="center">Leyendo la factura…</p>
+    </section>
+
+    <!-- REVISAR -->
+    <section id="screen-review" class="screen hidden">
+      <details class="photo-box" open>
+        <summary>Foto de la factura</summary>
+        <img id="reviewPreview" class="preview zoomable" alt="Factura">
+        <p class="muted small center">Toca la foto para verla en grande</p>
+      </details>
+
+      <div id="notice" class="notice hidden"></div>
+
+      <form id="form" autocomplete="off"></form>
+
+      <div class="actions">
+        <button id="btnSave" class="btn btn-primary">✅ Subir a Sheets</button>
+        <button id="btnRetry" class="btn btn-ghost">🔄 Volver a leer</button>
+        <button id="btnDiscard" class="btn btn-danger-ghost">Descartar</button>
+      </div>
+    </section>
+
+    <!-- LISTO -->
+    <section id="screen-done" class="screen hidden">
+      <div class="hero">
+        <div class="hero-icon">✅</div>
+        <p class="hero-text" id="doneText">¡Factura registrada!</p>
+      </div>
+      <button id="btnAnother" class="btn btn-primary btn-big">📷 Registrar otra</button>
+      <a id="linkSheetDone" class="link" target="_blank" rel="noopener">Ver en Google Sheets ↗</a>
+    </section>
+
+    <!-- AJUSTES -->
+    <section id="screen-settings" class="screen hidden">
+      <h2>Ajustes</h2>
+      <p class="muted small">Se guardan solo en este celular.</p>
+      <label class="field">
+        <span>URL de la Web App (Apps Script)</span>
+        <input id="cfgUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="off" autocorrect="off" spellcheck="false">
+      </label>
+      <label class="field">
+        <span>Token (APP_TOKEN)</span>
+        <input id="cfgToken" type="text" placeholder="Pega tu token" autocapitalize="off" autocorrect="off" spellcheck="false">
+      </label>
+      <button id="btnSaveSettings" class="btn btn-primary">Guardar y probar conexión</button>
+      <p id="settingsMsg" class="center small"></p>
+    </section>
+  </main>
+
+  <div id="lightbox" class="lightbox hidden"><img alt=""></div>
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
