@@ -132,8 +132,12 @@
     $('loadingPreview').src = state.previewUrl;
     $('loadingText').textContent = 'Leyendo la factura…';
     show('loading');
+    const slow = setTimeout(() => {
+      $('loadingText').textContent = 'Gemini está lento, probando otro modelo… (puede tardar hasta 1 minuto)';
+    }, 12000);
     try {
       const res = await api({ action: 'extract', image: state.image, mimeType: state.mimeType });
+      clearTimeout(slow);
       if (res.fields) {
         state.fields = res.fields;
         LS.set('fields', JSON.stringify(res.fields));
@@ -149,6 +153,7 @@
       show('review');
       validate();
     } catch (err) {
+      clearTimeout(slow);
       // Si falla la lectura, igual dejamos llenar a mano
       if (state.fields) {
         renderForm({}, []);
