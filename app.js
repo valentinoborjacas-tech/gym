@@ -209,6 +209,27 @@
 
       form.appendChild(wrap);
     });
+
+    // Si corriges el RUC, la empresa se actualiza sola
+    const empField = (state.fields || []).find((f) => f.map);
+    if (empField) {
+      const sel = form.elements[empField.key];
+      const sync = () => {
+        const d = getFormData();
+        const clean = (s) => String(s || '').replace(/\D/g, '');
+        const nombre = empField.map[clean(d.ruc_cliente)] || empField.map[clean(d.ruc_emisor)] || empField.fallback;
+        if (nombre && sel.value !== nombre) {
+          sel.value = nombre;
+          sel.closest('.field').classList.toggle('doubt', nombre === empField.fallback);
+        }
+        validate();
+      };
+      ['ruc_cliente', 'ruc_emisor'].forEach((k) => {
+        const el = form.elements[k];
+        if (el) el.addEventListener('input', sync);
+      });
+      if (!sel.value) sync();
+    }
   }
 
   function getFormData() {
@@ -244,6 +265,13 @@
     });
     if (!isNaN(s) && !isNaN(i) && !isNaN(t) && Math.abs(s + i - t) > 0.05) {
       setHint('total', `Subtotal + IGV = ${(s + i).toFixed(2)}, no coincide con el total.`);
+    }
+    const empField = (state.fields || []).find((f) => f.map);
+    if (empField) {
+      setHint(empField.key, '');
+      if (d[empField.key] === empField.fallback) {
+        setHint(empField.key, 'El RUC no coincide con ' + Object.values(empField.map).join(' ni ') + '. Revisa el RUC cliente o elige la empresa.');
+      }
     }
     if (d.fecha_emision) {
       const f = new Date(d.fecha_emision + 'T12:00:00');
