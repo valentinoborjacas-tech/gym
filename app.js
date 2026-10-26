@@ -108,9 +108,39 @@
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, w, h);
     ctx.drawImage(img, 0, 0, w, h);
-    URL.revokeObjectURL(url);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    return { dataUrl, base64: dataUrl.split(',')[1] };
+    let qr = '';
+    try { qr = decodeQR(img); } catch (e) { console.warn('QR', e); }
+    URL.revokeObjectURL(url);
+    return { dataUrl, base64: dataUrl.split(',')[1], qr };
+  }
+
+  /* ---------------- Código QR (SUNAT) ---------------- */
+  // Busca el QR en la foto probando varios tamaños y zonas (en vouchers suele ser pequeño)
+  function decodeQR(img) {
+    if (typeof jsQR !== 'function') return '';
+    const W = img.naturalWidth, H = img.naturalHeight;
+    const tries = [];
+    [900, 1400, 2000].forEach((max) => tries.push({ x: 0, y: 0, w: W, h: H, max }));
+    // franjas verticales superpuestas (de abajo hacia arriba: el QR suele ir al final)
+    // franjas a resolución completa, por si el QR salió pequeño en la foto
+    // (el QR suele ir al final del voucher, por eso se empieza por abajo)
+    // (el lector es sensible al recorte exacto, por eso se prueban cortes desplazados)
+    [[0.5, 1], [0.6, 1], [0.7, 1], [0.55, 0.95], [0.25, 0.75], [0.3, 0.7], [0, 0.5], [0.05, 0.45]].forEach(([a, b]) =>
+      tries.push({ x: 0, y: Math.round(H * a), w: W, h: Math.round(H * (b - a)), maxW: 4100 }));
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    for (const t of tries) {
+      const s = t.maxW ? Math.min(1, t.maxW / t.w) : Math.min(1, t.max / Math.max(t.w, t.h));
+      canvas.width = Math.round(t.w * s);
+      canvas.height = Math.round(t.h * s);
+      ctx.drawImage(img, t.x, t.y, t.w, t.h, 0, 0, canvas.width, canvas.height);
+      const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(d.data, d.width, d.height, { inversionAttempts: t.maxW ? 'dontInvert' : 'attemptBoth' });
+      if (code && code.data && code.data.includes('|')) return code.data.trim();
+    }
+    return '';
   }
 
   async function onFile(e) {
@@ -118,9 +148,14 @@
     e.target.value = ''; // permite elegir la misma foto otra vez
     if (!file) return;
     try {
-      const { dataUrl, base64 } = await compress(file);
+      $('loadingPreview').src = '';
+      $('loadingText').textContent = 'Buscando el código QR…';
+      show('loading');
+      await new Promise((r) => setTimeout(r, 50)); // deja que se pinte la pantalla
+      const { dataUrl, base64, qr } = await compress(file);
       state.image = base64;
       state.previewUrl = dataUrl;
+      state.qr = qr;
       await extract();
     } catch (err) {
       show('home');
@@ -130,13 +165,13 @@
 
   async function extract() {
     $('loadingPreview').src = state.previewUrl;
-    $('loadingText').textContent = 'Leyendo la factura…';
+    $('loadingText').textContent = state.qr ? '✅ QR leído. Completando datos…' : 'Leyendo la factura…';
     show('loading');
     const slow = setTimeout(() => {
-      $('loadingText').textContent = 'Gemini está lento, probando otro modelo… (puede tardar hasta 1 minuto)';
+      $('loadingText').textContent = 'La IA está lenta, probando otro modelo… (puede tardar hasta 1 minuto)';
     }, 12000);
     try {
-      const res = await api({ action: 'extract', image: state.image, mimeType: state.mimeType });
+      const res = await api({ action: 'extract', image: state.image, mimeType: state.mimeType, qr: state.qr || '' });
       clearTimeout(slow);
       if (res.fields) {
         state.fields = res.fields;
@@ -144,12 +179,12 @@
       }
       renderForm(res.data || {}, res.dudosos || []);
       $('reviewPreview').src = state.previewUrl;
-      setNotice(
-        (res.dudosos || []).length
-          ? 'warn' : '',
-        (res.dudosos || []).length
-          ? 'Revisa los campos marcados en amarillo: la IA no estaba segura.' : ''
-      );
+      const msgs = [];
+      if (res.fuente && res.fuente.includes('qr')) msgs.push('✅ RUC, serie, número, fecha, IGV y total leídos del código QR (exactos).');
+      if (res.aviso) msgs.push(res.aviso);
+      if (!state.qr) msgs.push('No se encontró el código QR (se leyó con IA). Tip: si el voucher tiene QR, toma la foto más cerca y con buena luz para datos exactos.');
+      if ((res.dudosos || []).length) msgs.push('Revisa los campos en amarillo.');
+      setNotice(res.aviso || (res.dudosos || []).length ? 'warn' : (msgs.length ? 'ok' : ''), msgs.join(' '));
       show('review');
       validate();
     } catch (err) {
